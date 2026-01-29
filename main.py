@@ -50,6 +50,7 @@ sheet_data = ler_planilha(SPREADSHEET_ID, RANGE)
 
 for row in sheet_data:
     id = uuid.uuid4()
+    unidade = row[2]
     pedido = row[3]
     unidade = row[2]
     title = f"[{row[0]}]{pedido}_{unidade}"  # Pega a última linha lida

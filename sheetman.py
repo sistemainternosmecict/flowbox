@@ -18,7 +18,7 @@ def ler_planilha(spreadsheet_id, range_name):
         flow = InstalledAppFlow.from_client_secrets_file(
             'credentials.json', SCOPES
         )
-        creds = flow.run_local_server(port=0)
+        #creds = flow.run_console()
 
         # Salva o token para próximas execuções
         with open('token.json', 'w') as token:
