@@ -1,11 +1,14 @@
 import os
 from supabase import create_client
-from dotenv import load_dotenv
 from sample import Sampledata
 from sheetman import ler_planilha
 from datetime import datetime, timezone
 import uuid
+import requests
+from supapdfsaver import SupabaseImageUploader
+from pathlib import Path
 
+from dotenv import load_dotenv
 # Carrega variáveis do .env
 load_dotenv()
 
@@ -51,6 +54,28 @@ for row in sheet_data:
     title = f"[{row[0]}]{pedido}"  # Pega a última linha lida
     desc = row[7]
     url = row[8]
+    drive_file_id = url.split("/")[-2]
+    
+    supabase_image_uploader = SupabaseImageUploader(supabase)
+    downloaded_file_path = supabase_image_uploader.download_from_google_drive(drive_file_id)
+    print(f"Arquivo baixado para: {downloaded_file_path}")
+
+    print(f"\n⬆️ Enviando arquivo para Supabase: {downloaded_file_path}")
+    upload_response = supabase_image_uploader.upload_to_supabase(
+        file_path=downloaded_file_path,
+        bucket_name="tasks-files",
+        destination_path=f"{id}.pdf",
+        make_public=True
+    )
+    print("Resposta do upload:", upload_response)
+    public_url = supabase_image_uploader.get_public_url(
+        bucket_name="tasks-files",
+        file_path=f"{id}.pdf"
+    )
+    print("URL pública do arquivo:", public_url)
+    # Remove o arquivo temporário baixado
+    os.remove(downloaded_file_path)
+
     dt = datetime.strptime(row[1], "%d/%m/%Y")
     dt = dt.replace(tzinfo=timezone.utc)
     data_iso = dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -75,7 +100,7 @@ for row in sheet_data:
             "description": f"{desc} - [Tarefa criada automaticamente]",
             "duedate": None,
             "external_ref": None,
-            "file_url": url,
+            "file_url": public_url,
             "id": str(id),
             "priority": "Média",
             "raw_metadata": None,

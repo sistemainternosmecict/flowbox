@@ -5,10 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "docx2pdf>=0.1.8",
     "google-api-python-client>=2.188.0",
     "google-auth>=2.48.0",
     "google-auth-httplib2>=0.3.0",
     "google-auth-oauthlib>=1.2.4",
+    "img2pdf>=0.6.3",
+    "pillow>=12.1.0",
+    "pypandoc>=1.16.2",
+    "python-docx>=1.2.0",
     "python-dotenv>=1.2.1",
+    "requests>=2.32.5",
     "supabase>=2.27.2",
 ]
