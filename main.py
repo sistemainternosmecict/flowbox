@@ -51,7 +51,8 @@ sheet_data = ler_planilha(SPREADSHEET_ID, RANGE)
 for row in sheet_data:
     id = uuid.uuid4()
     pedido = row[3]
-    title = f"[{row[0]}]{pedido}"  # Pega a última linha lida
+    unidade = row[2]
+    title = f"[{row[0]}]{pedido}_{unidade}"  # Pega a última linha lida
     desc = row[7]
     url = row[8]
     drive_file_id = url.split("/")[-2]
@@ -85,7 +86,8 @@ for row in sheet_data:
         supabase
         .table("tasks")
         .select("*")
-        .eq("file_url", url)
+        .eq("created_at", str(data_iso))
+        .eq("title", title)
         .execute()
     )
 
@@ -97,7 +99,7 @@ for row in sheet_data:
             "board_id": None,
             "completed_at": None,
             "created_at": str(data_iso),
-            "description": f"{desc} - [Tarefa criada automaticamente]",
+            "description": f"{unidade}/ {desc} - [Tarefa criada automaticamente]",
             "duedate": None,
             "external_ref": None,
             "file_url": public_url,
@@ -108,7 +110,7 @@ for row in sheet_data:
             "status": "Pendentes",
             "title": title,
             "updated_at": None,
-            "user_id": "b07c83a9-6903-4e02-8e4c-46fd8d50acd7",
+            "user_id": None,
         }
 
         log_to_insert = {
@@ -116,7 +118,7 @@ for row in sheet_data:
             "created_at": str(data_iso),
             "details": f"Tarefa vinda da planilha do cpd: {{'id': {str(id)}}} gerada automaticamente.",
             "metadata": None,
-            "user_id": "b07c83a9-6903-4e02-8e4c-46fd8d50acd7",
+            "user_id": None,
         }
 
         insert_response = supabase.table("tasks").insert(data_to_insert).execute()
