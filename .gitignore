@@ -11,3 +11,11 @@ wheels/
 .env
 credentials.json
 token.json
+*.un~
+.bash_history
+.config/
+.local/
+.profile
+.zshrc
+cron.log
+
