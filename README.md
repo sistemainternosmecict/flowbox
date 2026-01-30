@@ -81,7 +81,7 @@ SPREADSHEET_RANGE=A2:Z
 ```bash
 cd /opt/flowbox
 uv sync
-.venv/bin/python main.py
+uv run main.py
 ```
 
 ---
@@ -116,16 +116,6 @@ journalctl -u flowbox.service -f
 * Logs centralizados
 * Uso de UUIDs gerados pelo banco
 * Controle de dependências com `uv`
-
----
-
-## 📈 Possíveis Evoluções
-
-* 🔁 Uso de `upsert` no Supabase
-* 📊 Dashboard de sincronização
-* 📧 Notificação de falhas
-* 🧪 Testes automatizados
-* 🐳 Containerização com Docker
 
 ---
 
