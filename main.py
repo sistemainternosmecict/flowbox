@@ -7,7 +7,6 @@ import requests
 from dotenv import load_dotenv
 from supabase import create_client
 
-from sample import Sampledata
 from sheetman import ler_planilha
 from supapdfsaver import SupabaseImageUploader
 
