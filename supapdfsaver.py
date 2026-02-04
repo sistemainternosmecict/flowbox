@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from docx2pdf import convert as docx_convert
+import subprocess
 
 load_dotenv()
 
@@ -132,7 +132,8 @@ class SupabaseImageUploader:
         
         if file_path.lower().endswith(".docx"):
             pdf_path = f"{Path(file_path).stem}.pdf"
-            docx_convert(file_path, pdf_path)
+            # docx_convert(file_path, pdf_path)
+            subprocess.run(["pandoc", "-f", "docx", "-t", "pdf", file_path, "-o", pdf_path])
             file_path = pdf_path
 
         mime_type = 'application/pdf'
