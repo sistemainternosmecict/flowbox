@@ -122,6 +122,9 @@ journalctl -u flowbox.service -f
 ## 🧑‍💻 Autor
 
 Projeto desenvolvido para automação e confiabilidade na sincronização de dados entre backups e banco oficial.
+Programador: Thyéz de Oliveira Monteiro
+Cargo: Assessor de Informática
+Local de trabalho: SMECICT - Sala 25
 
 ---
 
