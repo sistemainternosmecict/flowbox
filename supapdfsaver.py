@@ -8,6 +8,7 @@ from pathlib import Path
 from PIL import Image
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from docx2pdf import convert as docx_convert
 
 load_dotenv()
 
@@ -128,6 +129,11 @@ class SupabaseImageUploader:
 
         if not destination_path.lower().endswith('.pdf'):
             destination_path = str(Path(destination_path).with_suffix('.pdf'))
+        
+        if file_path.lower().endswith(".docx"):
+            pdf_path = f"{Path(file_path).stem}.pdf"
+            docx_convert(file_path, pdf_path)
+            file_path = pdf_path
 
         mime_type = 'application/pdf'
 
@@ -147,6 +153,8 @@ class SupabaseImageUploader:
 
     def get_public_url(self, bucket_name: str, file_path: str) -> str:
         return self.supabase.storage.from_(bucket_name).get_public_url(file_path)
+    
+
 
 
 if __name__ == "__main__":

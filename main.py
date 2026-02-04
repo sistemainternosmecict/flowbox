@@ -41,6 +41,9 @@ for row in sheet_data:
     downloaded_file_path = supabase_image_uploader.download_from_google_drive(drive_file_id)
     print(f"Arquivo baixado para: {downloaded_file_path}")
 
+    pdf_path = supabase_image_uploader.convert_to_pdf(downloaded_file_path)
+    print(f"Arquivo convertido para: {pdf_path}")
+
     print(f"\n⬆️ Enviando arquivo para Supabase: {downloaded_file_path}")
     upload_response = supabase_image_uploader.upload_to_supabase(
         file_path=downloaded_file_path,
