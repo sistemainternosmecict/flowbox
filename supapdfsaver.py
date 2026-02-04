@@ -133,7 +133,10 @@ class SupabaseImageUploader:
         if file_path.lower().endswith(".docx"):
             pdf_path = f"{Path(file_path).stem}.pdf"
             # docx_convert(file_path, pdf_path)
-            subprocess.run(["pandoc", "-f", "docx", "-t", "pdf", file_path, "-o", pdf_path])
+            try:
+                subprocess.run(["pandoc", "-f", "docx", "-t", "pdf", file_path, "-o", pdf_path])
+            except subprocess.CalledProcessError as e:
+                print(f"Erro ao converter o arquivo: {e}")
             file_path = pdf_path
 
         mime_type = 'application/pdf'
