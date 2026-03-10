@@ -20,6 +20,14 @@ RANGE = os.getenv("RANGE")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
 
+<<<<<<< HEAD
+=======
+# Cria cliente
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+print("Cliente Supabase criado com sucesso")
+
+# Lê dados da planilha Google Sheets
+>>>>>>> drive_to_supabase
 if not SPREADSHEET_ID or not RANGE:
     raise RuntimeError("Variáveis de ambiente da planilha não configuradas")
 
@@ -36,6 +44,7 @@ for row in sheet_data:
     desc = row[7]
     url = row[8]
     drive_file_id = url.split("/")[-2]
+<<<<<<< HEAD
     
     supabase_image_uploader = SupabaseImageUploader(supabase)
     downloaded_file_path = supabase_image_uploader.download_from_google_drive(drive_file_id)
@@ -61,6 +70,8 @@ for row in sheet_data:
     
     os.remove(downloaded_file_path)
 
+=======
+>>>>>>> drive_to_supabase
     dt = datetime.strptime(row[1], "%d/%m/%Y")
     dt = dt.replace(tzinfo=timezone.utc)
     data_iso = dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -85,7 +96,7 @@ for row in sheet_data:
             "description": f"{unidade}/ {desc} - [Tarefa criada automaticamente]",
             "duedate": None,
             "external_ref": None,
-            "file_url": public_url,
+            "file_url": drive_file_id,
             "id": str(id),
             "priority": "Média",
             "raw_metadata": None,

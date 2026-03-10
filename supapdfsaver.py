@@ -124,6 +124,11 @@ class SupabaseImageUploader:
         destination_path: str = None,
         make_public: bool = False
     ) -> dict:
+<<<<<<< HEAD
+=======
+
+        # Se não especificou destino, usa o nome do arquivo
+>>>>>>> drive_to_supabase
         if destination_path is None:
             destination_path = Path(file_path).name
 
@@ -154,6 +159,7 @@ class SupabaseImageUploader:
 
     def get_public_url(self, bucket_name: str, file_path: str) -> str:
         return self.supabase.storage.from_(bucket_name).get_public_url(file_path)
+<<<<<<< HEAD
     
 
 
@@ -192,3 +198,5 @@ if __name__ == "__main__":
         )
         print("URL pública do arquivo:", public_url)
         os.remove(local_path)
+=======
+>>>>>>> drive_to_supabase
