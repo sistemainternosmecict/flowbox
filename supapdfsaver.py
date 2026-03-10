@@ -124,11 +124,7 @@ class SupabaseImageUploader:
         destination_path: str = None,
         make_public: bool = False
     ) -> dict:
-<<<<<<< HEAD
-=======
 
-        # Se não especificou destino, usa o nome do arquivo
->>>>>>> drive_to_supabase
         if destination_path is None:
             destination_path = Path(file_path).name
 
@@ -159,44 +155,5 @@ class SupabaseImageUploader:
 
     def get_public_url(self, bucket_name: str, file_path: str) -> str:
         return self.supabase.storage.from_(bucket_name).get_public_url(file_path)
-<<<<<<< HEAD
-    
-
-
-
-if __name__ == "__main__":
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    uploader = SupabaseImageUploader(supabase)
-
-    exemplos = [
-        {
-            "drive_id": "1C6j2RnGD6b5ZMAG4TaTCC2aHvfWDeEfB",
-            "destination": "documento.pdf"
-        }
-    ]
-
-    bucket = "tasks-files"
-
-    for exemplo in exemplos:
-        print(f"\n⬇️ Baixando arquivo do Drive ID: {exemplo['drive_id']}")
-        local_path = uploader.download_from_google_drive(
-            drive_file_id=exemplo['drive_id'],
-            output_path=exemplo['destination']
-        )
-
-        print(f"\n⬆️ Enviando arquivo para Supabase: {local_path}")
-        upload_response = uploader.upload_to_supabase(
-            file_path=local_path,
-            bucket_name=bucket,
-            destination_path=exemplo['destination'],
-            make_public=True
-        )
-        print("Resposta do upload:", upload_response)
-        public_url = uploader.get_public_url(
-            bucket_name=bucket,
-            file_path=exemplo['destination']
-        )
-        print("URL pública do arquivo:", public_url)
-        os.remove(local_path)
 =======
 >>>>>>> drive_to_supabase
