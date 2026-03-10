@@ -20,14 +20,6 @@ RANGE = os.getenv("RANGE")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
 
-<<<<<<< HEAD
-=======
-# Cria cliente
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-print("Cliente Supabase criado com sucesso")
-
-# Lê dados da planilha Google Sheets
->>>>>>> drive_to_supabase
 if not SPREADSHEET_ID or not RANGE:
     raise RuntimeError("Variáveis de ambiente da planilha não configuradas")
 
@@ -44,34 +36,6 @@ for row in sheet_data:
     desc = row[7]
     url = row[8]
     drive_file_id = url.split("/")[-2]
-<<<<<<< HEAD
-    
-    supabase_image_uploader = SupabaseImageUploader(supabase)
-    downloaded_file_path = supabase_image_uploader.download_from_google_drive(drive_file_id)
-    print(f"Arquivo baixado para: {downloaded_file_path}")
-
-    # pdf_path = supabase_image_uploader.convert_to_pdf(downloaded_file_path)
-    # print(f"Arquivo convertido para: {pdf_path}")
-
-    print(f"\n⬆️ Enviando arquivo para Supabase: {downloaded_file_path}")
-    upload_response = supabase_image_uploader.upload_to_supabase(
-        file_path=downloaded_file_path,
-        bucket_name="tasks-files",
-        destination_path=f"{id}.pdf",
-        make_public=True
-    )
-    print("Resposta do upload:", upload_response)
-    
-    public_url = supabase_image_uploader.get_public_url(
-        bucket_name="tasks-files",
-        file_path=f"{id}.pdf"
-    )
-    print("URL pública do arquivo:", public_url)
-    
-    os.remove(downloaded_file_path)
-
-=======
->>>>>>> drive_to_supabase
     dt = datetime.strptime(row[1], "%d/%m/%Y")
     dt = dt.replace(tzinfo=timezone.utc)
     data_iso = dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
