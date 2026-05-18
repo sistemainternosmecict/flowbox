@@ -6,6 +6,8 @@ Este micro projeto em **Python** tem como objetivo garantir a **consistência en
 
 O script lê periodicamente os registros de uma planilha de backup, verifica se existem **dados novos** e, caso esses dados **ainda não estejam presentes no banco oficial**, realiza a inserção automática.
 
+Diferente de versões anteriores, o sistema agora mantém os arquivos de ofício diretamente no **Google Drive**, armazenando apenas o ID de referência no banco de dados, eliminando a necessidade de conversão e upload de arquivos binários para o Supabase.
+
 O projeto foi pensado para rodar de forma **automatizada**, sendo ideal para execução via **`systemd timer`** ou **cron**, garantindo sincronização contínua e confiável.
 
 ---
@@ -13,10 +15,10 @@ O projeto foi pensado para rodar de forma **automatizada**, sendo ideal para exe
 ## ⚙️ Funcionalidades
 
 * 📥 Leitura de dados a partir de uma **planilha Google Sheets**
-* 🔍 Verificação de existência dos registros no banco oficial
-* 🧠 Prevenção de duplicidade de dados
-* 📤 Inserção automática apenas de registros novos
-* 🕒 Execução periódica (ex: a cada 1 minuto)
+* 🔍 Extração automática de IDs de arquivos do **Google Drive**
+* 🧠 Prevenção de duplicidade de registros (Idempotência)
+* 📤 Inserção automática de tarefas e logs de auditoria no Supabase
+* 🕒 Execução periódica agendada
 * 📜 Logs centralizados via `journalctl`
 
 ---
@@ -26,23 +28,23 @@ O projeto foi pensado para rodar de forma **automatizada**, sendo ideal para exe
 ```text
 Google Sheets (Backup)
         ↓
-Leitura dos registros
+Leitura dos registros + ID Drive
         ↓
-Verificação no Banco Oficial
+Verificação no Supabase (Tasks)
         ↓
 Já existe? ──► Sim → Ignora
         │
-        └──────► Não → Insere no Banco Oficial
+        └──────► Não → Insere Task (com link Drive) + Log
 ```
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-* **Python 3.10+**
-* **uv** — Gerenciador de dependências
+* **Python 3.13+**
+* **uv** — Gerenciador de dependências e ambiente
 * **Google Sheets API** — Leitura da planilha
-* **Supabase (PostgreSQL)** — Banco de dados oficial
+* **Supabase (PostgreSQL)** — Armazenamento de tarefas e logs
 * **systemd + timer** — Agendamento da execução
 
 ---
