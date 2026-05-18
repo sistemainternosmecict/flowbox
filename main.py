@@ -1,14 +1,11 @@
 import os
 import uuid
+import requests
 from datetime import datetime, timezone
 from pathlib import Path
-
-import requests
 from dotenv import load_dotenv
 from supabase import create_client
-
 from sheetman import ler_planilha
-from supapdfsaver import SupabaseImageUploader
 
 load_dotenv()
 
