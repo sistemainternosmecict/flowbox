@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client
 from sheetman import Sheetman
+from mailman import Mailman
 
 load_dotenv()
 
@@ -12,6 +13,7 @@ class Flowbox:
     supabase_client: any
     spreadsheet_data: list
     mudancas: list
+    emails_nao_lidos: list
 
     def __init__(self):
         print("""
@@ -25,6 +27,7 @@ class Flowbox:
             raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
         self.criar_cliente_supabase()
         self.carregar_dados_planilha()
+        self.processar_emails()
         self.mudancas = self.buscar_mudancas()
         self.atualiza_banco()
         print("Flowbox executado com sucesso!")
@@ -37,6 +40,16 @@ class Flowbox:
         sm = Sheetman()
         self.spreadsheet_data = sm.ler_planilha()
         print("Leitura da planilha realizada com sucesso!")
+
+    def processar_emails(self):
+        mm = Mailman()
+        self.emails_nao_lidos = mm.buscar_emails_nao_lidos()
+        if self.emails_nao_lidos:
+            print(f"Foram encontrados {len(self.emails_nao_lidos)} e-mails não lidos.")
+            for mail in self.emails_nao_lidos:
+                print(f"Email: {mail['subject']} de {mail['from']}")
+        else:
+            print("Nenhum e-mail novo encontrado.")
 
     def buscar_mudancas(self) -> list:
         print("Comparando dados e buscando mudanças...")
