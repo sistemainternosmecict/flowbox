@@ -2,53 +2,70 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from dotenv import load_dotenv
 import os
 
-SCOPES = [
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
-    'https://www.googleapis.com/auth/drive'
-]
+load_dotenv()
 
-def ler_planilha(spreadsheet_id, range_name):
-    creds = None
-    token_path = 'token.json'
+class Sheetman:
+    spreadsheet_id:str
+    cells_range:str
+    google_scopes:list
+    token_path:str
+    credentials_path:str
 
-    if os.path.exists(token_path):
-        try:
-            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
-        except Exception as e:
-            print(f"Erro ao ler token existente: {e}")
-            creds = None
+    def __init__(self):
+        self.spreadsheet_id = os.getenv("SPREADSHEET_ID")
+        self.cells_range = os.getenv("RANGE")
+        if not self.spreadsheet_id or not self.cells_range:
+            raise RuntimeError("Variáveis de ambiente da planilha não configuradas")
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+        self.google_scopes = [
+            'https://www.googleapis.com/auth/spreadsheets.readonly',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        self.token_path = 'token.json'
+        self.credentials_path = 'credentials.json'
+
+    def ler_planilha(self):
+        creds = None
+
+        if os.path.exists(self.token_path):
             try:
-                creds.refresh(Request())
+                creds = Credentials.from_authorized_user_file(self.token_path, self.google_scopes)
             except Exception as e:
-                print(f"Erro ao refresh token: {e}")
+                print(f"Erro ao ler token existente: {e}")
                 creds = None
 
-        if not creds:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES
-            )
-            creds = flow.run_local_server(port=0)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                try:
+                    creds.refresh(Request())
+                except Exception as e:
+                    print(f"Erro ao refresh token: {e}")
+                    creds = None
 
-        with open(token_path, 'w') as token:
-            token.write(creds.to_json())
+            if not creds:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    self.credentials_path, self.google_scopes
+                )
+                creds = flow.run_local_server(port=0)
 
-    service = build('sheets', 'v4', credentials=creds)
+            with open(self.token_path, 'w') as token:
+                token.write(creds.to_json())
 
-    sheet = service.spreadsheets()
-    result = sheet.values().get(
-        spreadsheetId=spreadsheet_id,
-        range=range_name
-    ).execute()
+        service = build('sheets', 'v4', credentials=creds)
 
-    values = result.get('values', [])
+        sheet = service.spreadsheets()
+        result = sheet.values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range=self.cells_range
+        ).execute()
 
-    if not values:
-        print('Nenhum dado encontrado.')
-        return []
+        values = result.get('values', [])
 
-    return values
+        if not values:
+            print('Nenhum dado encontrado.')
+            return []
+
+        return values
