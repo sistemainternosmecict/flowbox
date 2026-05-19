@@ -1,5 +1,4 @@
-import os
-import uuid
+import os, uuid, time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client
@@ -83,14 +82,14 @@ class Flowbox:
                     "description": f"{unidade}/ {desc} - [Tarefa criada automaticamente]",
                     "duedate": None,
                     "external_ref": None,
-                    "file_url": drive_file_id,
+                    "file_url": url,
                     "id": str(id),
                     "priority": "Média",
                     "raw_metadata": None,
                     "source": None,
                     "status": "Pendentes",
                     "title": title,
-                    "updated_at": None,
+                    "updated_at": str(datetime.now().isoformat()),
                     "user_id": None,
                 }
 
@@ -103,6 +102,7 @@ class Flowbox:
                 }
 
                 mudancas.append([data_to_insert, log_to_insert])
+        print(mudancas)
         return mudancas
 
     def atualiza_banco(self):
