@@ -22,7 +22,7 @@ class Mailman:
         
         if self.gemini_key:
             genai.configure(api_key=self.gemini_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            self.model = genai.GenerativeModel('gemini-3-flash-preview')
         else:
             print("Aviso: GEMINI_API_KEY não configurada no .env")
 
@@ -45,6 +45,7 @@ class Mailman:
             Analise este documento (ofício) e extraia as seguintes informações em formato JSON puro:
             {
                 "numero_oficio": "string",
+                "data_documento": "string (data de criação mencionada no documento, formato DD/MM/AAAA)",
                 "nome_unidade": "string",
                 "assunto": "string",
                 "resumo_pedido": "string"
@@ -100,6 +101,7 @@ class Mailman:
                         subject = subject.decode(encoding if encoding else "utf-8")
                     
                     from_ = email_msg.get("From")
+                    email_date = email_msg.get("Date")
                     body = ""
                     attachments_info = []
                     
@@ -131,6 +133,9 @@ class Mailman:
                                         
                                         # Analisa com Gemini
                                         analise = self.analisar_documento_com_gemini(tmp_path, content_type)
+                                        
+                                        if isinstance(analise, dict):
+                                            analise["data_entrada"] = email_date
                                         
                                         attachments_info.append({
                                             "filename": filename,
@@ -167,5 +172,5 @@ class Mailman:
         except Exception as e:
             print(f"Erro ao acessar e-mail: {e}")
             
-        print(json.dumps(emails_data, indent=2, ensure_ascii=False))
+        #print(json.dumps(emails_data, indent=2, ensure_ascii=False))
         return emails_data
