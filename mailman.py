@@ -48,10 +48,49 @@ class Mailman:
                     # Decodifica o remetente
                     from_ = email_msg.get("From")
                     
+                    # Extração do corpo e anexos
+                    body = ""
+                    attachments = []
+                    
+                    if email_msg.is_multipart():
+                        for part in email_msg.walk():
+                            content_type = part.get_content_type()
+                            content_disposition = str(part.get("Content-Disposition"))
+                            
+                            # Busca o corpo em texto plano
+                            if content_type == "text/plain" and "attachment" not in content_disposition:
+                                try:
+                                    payload = part.get_payload(decode=True)
+                                    charset = part.get_content_charset() or "utf-8"
+                                    body = payload.decode(charset, errors="ignore")
+                                except Exception:
+                                    pass
+                            
+                            # Verifica anexos
+                            elif "attachment" in content_disposition:
+                                filename = part.get_filename()
+                                if filename:
+                                    # Decodifica nome do arquivo se necessário
+                                    decoded_filename, encoding = decode_header(filename)[0]
+                                    if isinstance(decoded_filename, bytes):
+                                        filename = decoded_filename.decode(encoding if encoding else "utf-8")
+                                    attachments.append(filename)
+                    else:
+                        # Caso não seja multipart
+                        try:
+                            payload = email_msg.get_payload(decode=True)
+                            charset = email_msg.get_content_charset() or "utf-8"
+                            body = payload.decode(charset, errors="ignore")
+                        except Exception:
+                            pass
+
                     emails_data.append({
                         "subject": subject,
                         "from": from_,
                         "date": email_msg.get("Date"),
+                        "body": body.strip(),
+                        "has_attachment": len(attachments) > 0,
+                        "attachments": attachments,
                         "id": num.decode()
                     })
 
