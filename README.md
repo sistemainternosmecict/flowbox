@@ -1,51 +1,43 @@
-# 📄 Sincronizador de Backup para Banco Oficial
+# 🚀 Flowbox - Automação Inteligente de Ofícios
 
 ## 📌 Visão Geral
 
-Este micro projeto em **Python** tem como objetivo garantir a **consistência entre uma planilha de backup (Google Sheets)** e um **banco de dados oficial (Supabase/PostgreSQL)**.
+O **Flowbox** é um sistema de automação inteligente projetado para simplificar a triagem e o registro de ofícios recebidos por e-mail. Ele utiliza Inteligência Artificial (Gemini) para ler anexos, extrair informações críticas e organizar tudo automaticamente em uma planilha do Google e no banco de dados oficial (Supabase).
 
-O script lê periodicamente os registros de uma planilha de backup, verifica se existem **dados novos** e, caso esses dados **ainda não estejam presentes no banco oficial**, realiza a inserção automática.
-
-Diferente de versões anteriores, o sistema agora mantém os arquivos de ofício diretamente no **Google Drive**, armazenando apenas o ID de referência no banco de dados, eliminando a necessidade de conversão e upload de arquivos binários para o Supabase.
-
-O projeto foi pensado para rodar de forma **automatizada**, sendo ideal para execução via **`systemd timer`** ou **cron**, garantindo sincronização contínua e confiável.
+O objetivo principal é eliminar o trabalho manual de baixar anexos, renomear arquivos, extrair números de documentos e preencher planilhas.
 
 ---
 
 ## ⚙️ Funcionalidades
 
-* 📥 Leitura de dados a partir de uma **planilha Google Sheets**
-* 🔍 Extração automática de IDs de arquivos do **Google Drive**
-* 🧠 Prevenção de duplicidade de registros (Idempotência)
-* 📤 Inserção automática de tarefas e logs de auditoria no Supabase
-* 🕒 Execução periódica agendada
-* 📜 Logs centralizados via `journalctl`
+*   **📬 Triagem Automática**: Busca e-mails não lidos em uma conta IMAP específica.
+*   **🧠 Processamento com IA**: Utiliza o **Gemini 1.5 Flash** para analisar PDFs e imagens, extraindo número do ofício, datas, unidade e resumo do pedido.
+*   **📁 Gestão de Arquivos**: Faz upload automático dos anexos para uma pasta organizada no **Google Drive**.
+*   **📊 Registro em Planilha**: Insere novos registros no **Google Sheets** com links diretos para o arquivo no Drive.
+*   **🔄 Sincronização Supabase**: Integra os dados com o sistema de tarefas oficial, gerando logs de auditoria e evitando duplicidade.
 
 ---
 
 ## 🏗️ Arquitetura do Fluxo
 
 ```text
-Google Sheets (Backup)
-        ↓
-Leitura dos registros + ID Drive
-        ↓
-Verificação no Supabase (Tasks)
-        ↓
-Já existe? ──► Sim → Ignora
-        │
-        └──────► Não → Insere Task (com link Drive) + Log
+E-mail (Anexo) ──► Gemini AI (Análise) ──► Google Drive (Upload)
+                                              │
+      ┌───────────────────────────────────────┘
+      ▼
+Google Sheets (Registro) ──► Supabase (Tasks & Logs)
 ```
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-* **Python 3.13+**
-* **uv** — Gerenciador de dependências e ambiente
-* **Google Sheets API** — Leitura da planilha
-* **Supabase (PostgreSQL)** — Armazenamento de tarefas e logs
-* **systemd + timer** — Agendamento da execução
+*   **Python 3.13+**
+*   **uv** — Gerenciador de dependências e ambiente de alto desempenho.
+*   **Google Gemini API** — Extração inteligente de dados de documentos.
+*   **Google Sheets & Drive API** — Armazenamento e registro de dados.
+*   **Supabase (PostgreSQL)** — Banco de dados oficial de tarefas.
+*   **IMAP** — Monitoramento de caixa de entrada de e-mail.
 
 ---
 
@@ -53,81 +45,78 @@ Já existe? ──► Sim → Ignora
 
 ```text
 flowbox/
-├── main.py               # Script principal
-├── pyproject.toml        # Configuração do projeto
-├── uv.lock               # Lockfile do uv
-├── credentials.json      # Credenciais Google (NÃO versionar)
-├── .env                  # Variáveis de ambiente
-└── .venv/                # Ambiente virtual (gerado pelo uv)
+├── main.py               # Orquestrador principal do fluxo
+├── mailman.py            # Módulo de e-mail e integração com Gemini
+├── sheetman.py           # Módulo de integração com Google Sheets e Drive
+├── credentials.json      # Credenciais do Google Cloud (NÃO versionar)
+├── token.json            # Token de acesso gerado após o login (NÃO versionar)
+├── .env                  # Configurações e chaves secretas
+└── pyproject.toml        # Configuração de dependências (uv)
 ```
 
 ---
 
-## 🔐 Variáveis de Ambiente
+## 🔐 Configuração do Ambiente (.env)
 
-Crie um arquivo `.env` com as seguintes variáveis:
+Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 
 ```env
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_KEY=chave_secreta
-SPREADSHEET_ID=ID_DA_PLANILHA
-SPREADSHEET_RANGE=A2:Z
-```
+# --- Google Integration ---
+SPREADSHEET_ID=seu_id_da_planilha_aqui
+RANGE=Página1!A:I
+DRIVE_FOLDER_ID=seu_id_da_pasta_no_drive
 
-> ⚠️ Nunca versionar arquivos sensíveis como `.env` e `credentials.json`.
+# --- E-mail (IMAP) ---
+EMAIL_USER=seu-email@gmail.com
+EMAIL_PASS=sua_senha_de_app_aqui
+EMAIL_IMAP_SERVER=imap.gmail.com
+
+# --- Gemini AI ---
+GEMINI_API_KEY=sua_chave_gemini_aqui
+
+# --- Supabase ---
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_SERVICE_KEY=sua_chave_service_role
+```
 
 ---
 
-## ▶️ Execução Manual
+## 🚀 Instalação e Uso
 
+### 1. Requisitos Prévios
+*   Ter o [uv](https://github.com/astral-sh/uv) instalado.
+*   Habilitar as APIs do Google Sheets e Google Drive no [Google Cloud Console](https://console.cloud.google.com/).
+*   Baixar o arquivo `credentials.json` (OAuth 2.0 Desktop) e colocar na raiz do projeto.
+
+### 2. Configuração
 ```bash
-cd /opt/flowbox
+# Sincronizar dependências
 uv sync
+
+# Primeira execução (abrirá o navegador para autenticar no Google)
 uv run main.py
 ```
 
 ---
 
-## ⏱️ Execução Automática (systemd)
+## ⏱️ Automação (systemd)
 
-O projeto foi projetado para rodar como um **serviço agendado**, garantindo sincronização constante.
-
-* `flowbox.service` → Executa o script
-* `flowbox.timer` → Agenda a execução (ex: a cada 1 minuto)
-
-Logs podem ser acompanhados com:
+Para garantir que o Flowbox processe e-mails continuamente, recomenda-se o uso de um timer do systemd:
 
 ```bash
+# Ver status do serviço
 journalctl -u flowbox.service -f
 ```
 
 ---
 
-## 🧪 Comportamento Esperado
-
-* O script **não insere registros duplicados**
-* A verificação é feita com base em campos-chave (ex: `file_url`)
-* Pode ser executado múltiplas vezes sem causar inconsistências
-
----
-
-## 🚀 Boas Práticas Aplicadas
-
-* Execução idempotente
-* Separação de ambientes
-* Logs centralizados
-* Uso de UUIDs gerados pelo banco
-* Controle de dependências com `uv`
-
----
-
 ## 🧑‍💻 Autor
 
-Projeto desenvolvido para automação e confiabilidade na sincronização de dados entre backups e banco oficial.
+Projeto desenvolvido para modernizar e automatizar o fluxo de entrada de documentos oficiais.
 
-- Programador: Thyéz de Oliveira Monteiro
-- Cargo: Assessor de Informática
-- Local de trabalho: SMECICT - Sala 25
+- **Programador**: Thyéz de Oliveira Monteiro
+- **Cargo**: Assessor de Informática
+- **Local**: SMECICT - Sala 25
 
 ---
 
