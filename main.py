@@ -25,11 +25,11 @@ class Flowbox:
         self.supabase_key = os.getenv("VITE_SUPABASE_SERVICE_KEY")
         if not self.supabase_url or not self.supabase_key:
             raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
-        #self.criar_cliente_supabase()
-        #self.carregar_dados_planilha()
+        self.criar_cliente_supabase()
         self.processar_emails()
-        #self.mudancas = self.buscar_mudancas()
-        #self.atualiza_banco()
+        self.carregar_dados_planilha()
+        self.mudancas = self.buscar_mudancas()
+        self.atualiza_banco()
         print("Flowbox executado com sucesso!")
 
     def criar_cliente_supabase(self):

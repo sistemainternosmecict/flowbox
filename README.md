@@ -11,22 +11,20 @@ O objetivo principal é eliminar o trabalho manual de baixar anexos, renomear ar
 ## ⚙️ Funcionalidades
 
 *   **📬 Triagem Automática**: Busca e-mails não lidos em uma conta IMAP específica.
-*   **🧠 Processamento com IA**: Utiliza o **Gemini 1.5 Flash** para analisar PDFs e imagens, extraindo número do ofício, datas, unidade e resumo do pedido.
-*   **📁 Gestão de Arquivos**: Faz upload automático dos anexos para uma pasta organizada no **Google Drive**.
-*   **📊 Registro em Planilha**: Insere novos registros no **Google Sheets** com links diretos para o arquivo no Drive.
-*   **🔄 Sincronização Supabase**: Integra os dados com o sistema de tarefas oficial, gerando logs de auditoria e evitando duplicidade.
+*   **🧠 Processamento com IA**: Utiliza o **Gemini 1.5 Flash** para analisar PDFs e imagens, extraindo número do ofício, data do documento, unidade, assunto e gerando um resumo.
+*   **📁 Gestão de Arquivos**: Renomeia automaticamente os anexos para o padrão `[NÚMERO_OFICIO] - [NOME_UNIDADE]` (higienizando caracteres especiais) e faz upload para uma pasta organizada no **Google Drive**.
+*   **📊 Registro em Planilha**: Insere novos registros no **Google Sheets** na aba correspondente ao ano vigente (ex: `2026`), incluindo links diretos para o arquivo no Drive.
+*   **🔄 Sincronização Supabase**: Compara os dados da planilha com o banco de dados de tarefas do Supabase, inserindo automaticamente novos registros detectados e garantindo a integridade dos dados.
 
 ---
 
 ## 🏗️ Arquitetura do Fluxo
 
-```text
-E-mail (Anexo) ──► Gemini AI (Análise) ──► Google Drive (Upload)
-                                              │
-      ┌───────────────────────────────────────┘
-      ▼
-Google Sheets (Registro) ──► Supabase (Tasks & Logs)
-```
+1.  **Monitoramento**: O sistema acessa a caixa de entrada via IMAP e identifica e-mails não lidos.
+2.  **Extração**: Anexos (PDF/Imagens) são enviados temporariamente para a API do **Gemini 1.5 Flash** para extração de metadados em formato JSON.
+3.  **Renomeação e Armazenamento**: O arquivo é renomeado seguindo o padrão definido e enviado ao **Google Drive**. O arquivo temporário local é excluído após o sucesso.
+4.  **Registro**: As informações extraídas + o link do Drive são inseridos como uma nova linha no **Google Sheets**.
+5.  **Integração**: O sistema lê a planilha, identifica linhas ainda não presentes no **Supabase** e as insere na tabela de tarefas, fechando o ciclo de automação.
 
 ---
 
@@ -45,12 +43,12 @@ Google Sheets (Registro) ──► Supabase (Tasks & Logs)
 
 ```text
 flowbox/
-├── main.py               # Orquestrador principal do fluxo
-├── mailman.py            # Módulo de e-mail e integração com Gemini
-├── sheetman.py           # Módulo de integração com Google Sheets e Drive
-├── credentials.json      # Credenciais do Google Cloud (NÃO versionar)
-├── token.json            # Token de acesso gerado após o login (NÃO versionar)
-├── .env                  # Configurações e chaves secretas
+├── main.py               # Orquestrador principal (Loop de e-mail -> Drive -> Sheets -> Supabase)
+├── mailman.py            # Módulo de e-mail e integração com Gemini (Análise de documentos)
+├── sheetman.py           # Módulo de integração com APIs do Google (Sheets e Drive)
+├── credentials.json      # Credenciais do Google Cloud (OAuth 2.0 - NÃO versionar)
+├── token.json            # Token de acesso persistente (NÃO versionar)
+├── .env                  # Configurações de chaves e acessos
 └── pyproject.toml        # Configuração de dependências (uv)
 ```
 
@@ -58,12 +56,12 @@ flowbox/
 
 ## 🔐 Configuração do Ambiente (.env)
 
-Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
+Certifique-se de que o seu `.env` contenha:
 
 ```env
 # --- Google Integration ---
 SPREADSHEET_ID=seu_id_da_planilha_aqui
-RANGE=Página1!A:I
+RANGE=2026!A:I
 DRIVE_FOLDER_ID=seu_id_da_pasta_no_drive
 
 # --- E-mail (IMAP) ---
@@ -93,26 +91,15 @@ VITE_SUPABASE_SERVICE_KEY=sua_chave_service_role
 # Sincronizar dependências
 uv sync
 
-# Primeira execução (abrirá o navegador para autenticar no Google)
+# Execução do fluxo
 uv run main.py
-```
-
----
-
-## ⏱️ Automação (systemd)
-
-Para garantir que o Flowbox processe e-mails continuamente, recomenda-se o uso de um timer do systemd:
-
-```bash
-# Ver status do serviço
-journalctl -u flowbox.service -f
 ```
 
 ---
 
 ## 🧑‍💻 Autor
 
-Projeto desenvolvido para modernizar e automatizar o fluxo de entrada de documentos oficiais.
+Projeto desenvolvido para modernizar e automatizar o fluxo de entrada de documentos oficiais na SMECICT.
 
 - **Programador**: Thyéz de Oliveira Monteiro
 - **Cargo**: Assessor de Informática
