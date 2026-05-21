@@ -1,6 +1,7 @@
 import imaplib
 import email
 from email.header import decode_header
+from email.utils import parsedate_to_datetime
 import os
 import tempfile
 import json
@@ -101,7 +102,14 @@ class Mailman:
                         subject = subject.decode(encoding if encoding else "utf-8")
                     
                     from_ = email_msg.get("From")
-                    email_date = email_msg.get("Date")
+                    email_date_raw = email_msg.get("Date")
+                    email_date = email_date_raw
+                    try:
+                        dt = parsedate_to_datetime(email_date_raw)
+                        email_date = dt.strftime("%d/%m/%Y")
+                    except Exception:
+                        pass
+                    
                     body = ""
                     attachments_info = []
                     
