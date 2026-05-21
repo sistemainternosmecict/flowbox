@@ -139,11 +139,11 @@ class Mailman:
                                         
                                         attachments_info.append({
                                             "filename": filename,
-                                            "analysis": analise
+                                            "analysis": analise,
+                                            "temp_path": tmp_path
                                         })
                                         
-                                        # Remove arquivo temporário
-                                        os.unlink(tmp_path)
+                                        # O arquivo temporário será removido no main.py após upload para o Drive
                                     else:
                                         attachments_info.append({
                                             "filename": filename,

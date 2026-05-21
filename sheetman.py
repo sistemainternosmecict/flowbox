@@ -125,7 +125,7 @@ class Sheetman:
 
         try:
             # Pega o nome da aba a partir do range (ex: 'Página1!A1' -> 'Página1')
-            sheet_name = self.cells_range.split('!')[0] if '!' in self.cells_range else 'Página1'
+            sheet_name = self.cells_range.split('!')[0] if '!' in self.cells_range else '2026'
             
             result = service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,

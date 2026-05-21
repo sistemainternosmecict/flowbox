@@ -25,11 +25,11 @@ class Flowbox:
         self.supabase_key = os.getenv("VITE_SUPABASE_SERVICE_KEY")
         if not self.supabase_url or not self.supabase_key:
             raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
-        self.criar_cliente_supabase()
-        self.carregar_dados_planilha()
+        #self.criar_cliente_supabase()
+        #self.carregar_dados_planilha()
         self.processar_emails()
-        self.mudancas = self.buscar_mudancas()
-        self.atualiza_banco()
+        #self.mudancas = self.buscar_mudancas()
+        #self.atualiza_banco()
         print("Flowbox executado com sucesso!")
 
     def criar_cliente_supabase(self):
@@ -43,11 +43,50 @@ class Flowbox:
 
     def processar_emails(self):
         mm = Mailman()
+        sm = Sheetman()
         self.emails_nao_lidos = mm.buscar_emails_nao_lidos()
         if self.emails_nao_lidos:
-            print(f"Foram encontrados {len(self.emails_nao_lidos)} e-mails não lidos.")
-            for mail in self.emails_nao_lidos:
-                print(f"Email: {mail['subject']} de {mail['from']}")
+            print(f"\nForam encontrados {len(self.emails_nao_lidos)} e-mails não lidos.")
+            for email in self.emails_nao_lidos:
+                for att in email.get("attachments", []):
+                    analysis = att.get("analysis")
+                    tmp_path = att.get("temp_path")
+                    filename = att.get("filename")
+
+                    if isinstance(analysis, dict) and tmp_path:
+                        # Extrai a extensão original
+                        ext = os.path.splitext(filename)[1]
+                        
+                        # Define o novo nome padrão: [numero do oficio] - [nome da unidade]
+                        numero_oficio = str(analysis.get("numero_oficio", "S-N")).replace("/", "_")
+                        nome_unidade = analysis.get("nome_unidade", "Unidade Desconhecida")
+                        novo_nome = f"{numero_oficio} - {nome_unidade}{ext}"
+
+                        # 1. Faz upload do anexo para o Google Drive
+                        print(f"Fazendo upload de '{filename}' como '{novo_nome}' para o Drive...")
+                        link_drive = sm.upload_para_drive(tmp_path, novo_nome)
+                        print("link_drive: ", link_drive)
+
+                        # 2. Insere os dados extraídos na planilha
+                        if link_drive:
+                            print(f"Registrando ofício {analysis.get('numero_oficio')} na planilha...")
+                            sm.inserir_novo_registro(
+                                n_oficio=analysis.get("numero_oficio"),
+                                data_doc=analysis.get("data_documento"),
+                                escola=analysis.get("nome_unidade"),
+                                pedido=analysis.get("assunto"),
+                                data_entrada=analysis.get("data_entrada"),
+                                resumo=analysis.get("resumo_pedido"),
+                                link_arquivo=link_drive
+                            )
+                        
+                        # 3. Remove o arquivo temporário local
+                        if os.path.exists(tmp_path):
+                            os.unlink(tmp_path)
+                
+                print(f"Email '{email['subject']}' processado com sucesso.")
+            print("Todos os emails processados.")
+            print("------------------------------\n")
         else:
             print("Nenhum e-mail novo encontrado.")
 
