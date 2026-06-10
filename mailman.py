@@ -68,6 +68,57 @@ class Mailman:
             print(f"Erro ao analisar com Gemini: {e}")
             return None
 
+    def obter_id_original_email(self, email_msg, num):
+        # Extrair Message-ID do cabeçalho
+        message_id = email_msg.get("Message-ID", "")
+        
+        # Extrair o corpo do e-mail
+        body = ""
+        if email_msg.is_multipart():
+            for part in email_msg.walk():
+                if part.get_content_type() == "text/plain":
+                    try:
+                        payload = part.get_payload(decode=True)
+                        charset = part.get_content_charset() or "utf-8"
+                        body = payload.decode(charset, errors="ignore")
+                        break
+                    except Exception:
+                        continue
+        else:
+            try:
+                payload = email_msg.get_payload(decode=True)
+                charset = email_msg.get_content_charset() or "utf-8"
+                body = payload.decode(charset, errors="ignore")
+            except Exception:
+                pass
+
+        import re
+        
+        # Procura por todos os e-mails com o domínio específico
+        all_emails = re.findall(r'[a-zA-Z0-9._%+-]+@smec\.saquarema\.rj\.gov\.br', body, re.IGNORECASE)
+        
+        # Filtra para excluir e-mails indesejados
+        sender_email = None
+        for email_found in all_emails:
+            email_lower = email_found.lower()
+            if "subsec.tecnologia" not in email_lower and "corporativo" not in email_lower:
+                sender_email = email_found
+                break
+        
+        # 2. Se não encontrou no corpo, usa o cabeçalho 'From' original
+        if not sender_email:
+            from_header = email_msg.get("From", "")
+            match_from = re.search(r'<(.*?)>', from_header)
+            sender_email = match_from.group(1) if match_from else from_header
+        
+        # Retorna o Message-ID limpo e o e-mail do remetente
+        return message_id.strip("<>"), sender_email
+
+    def inserir_id_na_resposta(self, email_data, email_id, sender_email):
+        email_data["id"] = email_id
+        email_data["sender_email"] = sender_email
+        return email_data
+
     def buscar_emails_nao_lidos(self) -> list:
         if not self.email_user or not self.email_pass:
             return []
@@ -166,19 +217,23 @@ class Mailman:
                         except Exception:
                             pass
 
-                    emails_data.append({
+                    email_entry = {
                         "subject": subject,
                         "from": from_,
                         "date": email_msg.get("Date"),
                         "body": body.strip(),
                         "has_attachment": len(attachments_info) > 0,
                         "attachments": attachments_info,
-                        "id": num.decode()
-                    })
+                    }
+                    
+                    # Usa os métodos para obter id e e-mail e inserir na resposta
+                    email_id, sender_email = self.obter_id_original_email(email_msg, num)
+                    email_entry = self.inserir_id_na_resposta(email_entry, email_id, sender_email)
+
+                    emails_data.append(email_entry)
 
             mail.logout()
         except Exception as e:
             print(f"Erro ao acessar e-mail: {e}")
             
-        #print(json.dumps(emails_data, indent=2, ensure_ascii=False))
         return emails_data

@@ -23,9 +23,22 @@ class Flowbox:
               """)
         self.supabase_url = os.getenv("VITE_SUPABASE_URL")
         self.supabase_key = os.getenv("VITE_SUPABASE_SERVICE_KEY")
+        
+        self.mailids_url = os.getenv("MAILIDS_URL")
+        self.mailids_key = os.getenv("MAILIDS_KEY")
+        
         if not self.supabase_url or not self.supabase_key:
             raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
+        
         self.criar_cliente_supabase()
+        
+        # Cliente para tabela de mail_ids
+        if self.mailids_url and self.mailids_key:
+            self.mailids_client = create_client(self.mailids_url, self.mailids_key)
+        else:
+            self.mailids_client = None
+            print("Aviso: Credenciais para mail_ids não configuradas.")
+
         self.processar_emails()
         self.carregar_dados_planilha()
         self.mudancas = self.buscar_mudancas()
@@ -79,7 +92,20 @@ class Flowbox:
                                 resumo=analysis.get("resumo_pedido"),
                                 link_arquivo=link_drive
                             )
-                        
+                            
+                            # Atualiza registro no Supabase se possível
+                            # (Note: Isso exigiria uma lógica de update, aqui estamos apenas no insert)
+                            # Registra o e-mail no Supabase, mesmo que não tenha anexo analisável
+
+                            self.registra_mail_id(
+                                mail_id=email.get("id"),
+                                numero_oficio=numero_oficio, # Será atualizado se houver anexo
+                                email_unidade=email.get("sender_email"),
+                                unidade=nome_unidade,
+                                assunto=email.get("subject"),
+                                url_anexo_drive=""
+                            )
+
                         # 3. Remove o arquivo temporário local
                         if os.path.exists(tmp_path):
                             os.unlink(tmp_path)
@@ -164,5 +190,26 @@ class Flowbox:
                 self.supabase_client.table("tasks").insert(data[0]).execute()
                 self.supabase_client.table("user_logs").insert(data[1]).execute()
                 time.sleep(1) # Delay solicitado de 1s
+
+    def registra_mail_id(self, mail_id, numero_oficio, email_unidade, unidade, assunto, url_anexo_drive):
+        if not self.mailids_client:
+            print("Cliente para mail_ids não configurado, ignorando registro.")
+            return
+        
+        data = {
+            "mail_id": mail_id,
+            "numero_oficio": numero_oficio,
+            "email_unidade": email_unidade,
+            "unidade": unidade,
+            "assunto": assunto,
+            "url_anexo_drive": url_anexo_drive
+        }
+        
+        try:
+            self.mailids_client.table("mail_ids").insert(data).execute()
+            print(f"E-mail {mail_id} registrado com sucesso no Supabase.")
+        except Exception as e:
+            print(f"Erro ao registrar e-mail {mail_id} no Supabase: {e}")
+
 
 flowbox = Flowbox()
