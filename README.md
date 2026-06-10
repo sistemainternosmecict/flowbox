@@ -16,6 +16,8 @@ O objetivo principal é eliminar o trabalho manual de baixar anexos, renomear ar
 *   **📊 Registro em Planilha**: Insere novos registros no **Google Sheets** na aba correspondente ao ano vigente (ex: `2026`), incluindo links diretos para o arquivo no Drive.
 *   **🔄 Sincronização Supabase**: Compara os dados da planilha com o banco de dados de tarefas do Supabase, inserindo automaticamente novos registros detectados e garantindo a integridade dos dados.
 
+**Novo:** O sistema agora integra uma tabela dedicada `mail_ids` no Supabase para registrar todos os e-mails recebidos, facilitando o rastreio, mesmo quando não há anexos processáveis.
+
 ---
 
 ## 🏗️ Arquitetura do Fluxo
@@ -24,7 +26,7 @@ O objetivo principal é eliminar o trabalho manual de baixar anexos, renomear ar
 2.  **Extração**: Anexos (PDF/Imagens) são enviados temporariamente para a API do **Gemini 1.5 Flash** para extração de metadados em formato JSON.
 3.  **Renomeação e Armazenamento**: O arquivo é renomeado seguindo o padrão definido e enviado ao **Google Drive**. O arquivo temporário local é excluído após o sucesso.
 4.  **Registro**: As informações extraídas + o link do Drive são inseridos como uma nova linha no **Google Sheets**.
-5.  **Integração**: O sistema lê a planilha, identifica linhas ainda não presentes no **Supabase** e as insere na tabela de tarefas, fechando o ciclo de automação.
+5.  **Integração**: O sistema lê a planilha, identifica linhas ainda não presentes no **Supabase** e as insere na tabela de tarefas. Além disso, registra cada e-mail recebido na tabela `mail_ids` do **Supabase**.
 
 ---
 
@@ -34,7 +36,7 @@ O objetivo principal é eliminar o trabalho manual de baixar anexos, renomear ar
 *   **uv** — Gerenciador de dependências e ambiente de alto desempenho.
 *   **Google Gemini API** — Extração inteligente de dados de documentos.
 *   **Google Sheets & Drive API** — Armazenamento e registro de dados.
-*   **Supabase (PostgreSQL)** — Banco de dados oficial de tarefas.
+*   **Supabase (PostgreSQL)** — Banco de dados oficial de tarefas e e-mails.
 *   **IMAP** — Monitoramento de caixa de entrada de e-mail.
 
 ---
@@ -72,9 +74,13 @@ EMAIL_IMAP_SERVER=imap.gmail.com
 # --- Gemini AI ---
 GEMINI_API_KEY=sua_chave_gemini_aqui
 
-# --- Supabase ---
+# --- Supabase (Tarefas) ---
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_SERVICE_KEY=sua_chave_service_role
+
+# --- Supabase (Registro de E-mails) ---
+MAILIDS_URL=https://yyyy.supabase.co
+MAILIDS_KEY=sua_chave_service_role_para_mailids
 ```
 
 ---
