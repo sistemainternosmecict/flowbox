@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import mailman
-import os
 
 # Mock para as variáveis de ambiente
 @pytest.fixture
