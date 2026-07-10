@@ -2,7 +2,26 @@ import os, uuid, time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+
+# 1. Configura o SDK (A infraestrutura de envio)
+resource = Resource.create(attributes={"service.name": "flowbox-app"})
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4317"))
+provider.add_span_processor(processor)
+
+# 2. Registra o Provider Globalmente (A mágica acontece aqui)
+trace.set_tracer_provider(provider)
+
+# 3. Adquire o tracer do próprio main.py
+tracer = trace.get_tracer(__name__)
+
 from sheetman import Sheetman
+from mailman import Mailman
 
 load_dotenv()
 
@@ -12,6 +31,7 @@ class Flowbox:
     supabase_client: any
     spreadsheet_data: list
     mudancas: list
+    emails_nao_lidos: list
 
     def __init__(self):
         print("""
@@ -21,12 +41,30 @@ class Flowbox:
               """)
         self.supabase_url = os.getenv("VITE_SUPABASE_URL")
         self.supabase_key = os.getenv("VITE_SUPABASE_SERVICE_KEY")
+        
+        self.mailids_url = os.getenv("MAILIDS_URL")
+        self.mailids_key = os.getenv("MAILIDS_KEY")
+        
         if not self.supabase_url or not self.supabase_key:
             raise RuntimeError("Variáveis de ambiente do Supabase não configuradas")
+        
         self.criar_cliente_supabase()
-        self.carregar_dados_planilha()
-        self.mudancas = self.buscar_mudancas()
-        self.atualiza_banco()
+        
+        # Cliente para tabela de mail_ids
+        if self.mailids_url and self.mailids_key:
+            self.mailids_client = create_client(self.mailids_url, self.mailids_key)
+        else:
+            self.mailids_client = None
+            print("Aviso: Credenciais para mail_ids não configuradas.")
+
+        with tracer.start_as_current_span("processar_emails"):
+            self.processar_emails()
+        with tracer.start_as_current_span("carregar_dados_planilha"):
+            self.carregar_dados_planilha()
+        with tracer.start_as_current_span("buscar_mudancas"):
+            self.mudancas = self.buscar_mudancas()
+        with tracer.start_as_current_span("atualiza_banco"):
+            self.atualiza_banco()
         print("Flowbox executado com sucesso!")
 
     def criar_cliente_supabase(self):
@@ -37,6 +75,69 @@ class Flowbox:
         sm = Sheetman()
         self.spreadsheet_data = sm.ler_planilha()
         print("Leitura da planilha realizada com sucesso!")
+
+    def processar_emails(self):
+        mm = Mailman()
+        sm = Sheetman()
+        self.emails_nao_lidos = mm.buscar_emails_nao_lidos()
+        if self.emails_nao_lidos:
+            print(f"\nForam encontrados {len(self.emails_nao_lidos)} e-mails não lidos.")
+            for email in self.emails_nao_lidos:
+                with tracer.start_as_current_span("loop_email"):
+                    for att in email.get("attachments", []):
+                        analysis = att.get("analysis")
+                        tmp_path = att.get("temp_path")
+                        filename = att.get("filename")
+
+                        if isinstance(analysis, dict) and tmp_path:
+                            # Extrai a extensão original
+                            ext = os.path.splitext(filename)[1]
+                            
+                            # Define o novo nome padrão: [numero do oficio] - [nome da unidade]
+                            numero_oficio = str(analysis.get("numero_oficio", "S-N")).replace("/", "_")
+                            nome_unidade = analysis.get("nome_unidade", "Unidade Desconhecida")
+                            novo_nome = f"{numero_oficio} - {nome_unidade}{ext}"
+
+                            # 1. Faz upload do anexo para o Google Drive
+                            print(f"Fazendo upload de '{filename}' como '{novo_nome}' para o Drive...")
+                            link_drive = sm.upload_para_drive(tmp_path, novo_nome)
+                            print("link_drive: ", link_drive)
+
+                            # 2. Insere os dados extraídos na planilha
+                            if link_drive:
+                                print(f"Registrando ofício {analysis.get('numero_oficio')} na planilha...")
+                                sm.inserir_novo_registro(
+                                    n_oficio=analysis.get("numero_oficio"),
+                                    data_doc=analysis.get("data_documento"),
+                                    escola=analysis.get("nome_unidade"),
+                                    pedido=analysis.get("assunto"),
+                                    data_entrada=analysis.get("data_entrada"),
+                                    resumo=analysis.get("resumo_pedido"),
+                                    link_arquivo=link_drive
+                                )
+                                
+                                # Atualiza registro no Supabase se possível
+                                # (Note: Isso exigiria uma lógica de update, aqui estamos apenas no insert)
+                                # Registra o e-mail no Supabase, mesmo que não tenha anexo analisável
+
+                                self.registra_mail_id(
+                                    mail_id=email.get("id"),
+                                    numero_oficio=numero_oficio, # Será atualizado se houver anexo
+                                    email_unidade=email.get("sender_email"),
+                                    unidade=nome_unidade,
+                                    assunto=email.get("subject"),
+                                    url_anexo_drive=""
+                                )
+
+                            # 3. Remove o arquivo temporário local
+                            if os.path.exists(tmp_path):
+                                os.unlink(tmp_path)
+                    
+                    print(f"Email '{email['subject']}' processado com sucesso.")
+            print("Todos os emails processados.")
+            print("------------------------------\n")
+        else:
+            print("Nenhum e-mail novo encontrado.")
 
     def buscar_mudancas(self) -> list:
         print("Comparando dados e buscando mudanças...")
@@ -113,4 +214,30 @@ class Flowbox:
                 self.supabase_client.table("user_logs").insert(data[1]).execute()
                 time.sleep(1) # Delay solicitado de 1s
 
-flowbox = Flowbox()
+    def registra_mail_id(self, mail_id, numero_oficio, email_unidade, unidade, assunto, url_anexo_drive):
+        if not self.mailids_client:
+            print("Cliente para mail_ids não configurado, ignorando registro.")
+            return
+        
+        data = {
+            "mail_id": mail_id,
+            "numero_oficio": numero_oficio,
+            "email_unidade": email_unidade,
+            "unidade": unidade,
+            "assunto": assunto,
+            "url_anexo_drive": url_anexo_drive
+        }
+        
+        try:
+            self.mailids_client.table("mail_ids").insert(data).execute()
+            print(f"E-mail {mail_id} registrado com sucesso no Supabase.")
+        except Exception as e:
+            print(f"Erro ao registrar e-mail {mail_id} no Supabase: {e}")
+
+
+if __name__ == "__main__":
+    try:
+        with tracer.start_as_current_span("Execução periódica - Flowbox."):
+            flowbox = Flowbox()
+    finally:
+        provider.shutdown()
