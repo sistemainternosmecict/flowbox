@@ -4,8 +4,30 @@ import os, tempfile, json, time, imaplib, email, logging
 from datetime import datetime
 from dotenv import load_dotenv
 import google.generativeai as genai
+from opentelemetry import trace, metrics
 
 load_dotenv()
+meter = metrics.get_meter(__name__)
+# 1. Contador para Documentos Processados
+doc_counter = meter.create_counter(
+    name="documentos_processados_total",
+    description="Total de documentos processados pelo mailman",
+    unit="1"
+)
+
+# 2. Contador de Requisições Feitas ao Gemini
+gemini_requests_counter = meter.create_counter(
+    name="gemini_requisicoes_total",
+    description="Total de chamadas feitas à API do Gemini",
+    unit="1"
+)
+
+# 3. Contador de Tokens Consumidos
+gemini_tokens_counter = meter.create_counter(
+    name="gemini_tokens_consumidos_total",
+    description="Total de tokens consumidos no Gemini (Prompt e Resposta)",
+    unit="1"
+)
 
 
 class Mailman:
@@ -29,10 +51,11 @@ class Mailman:
         try:
             print(f"Enviando {file_path} para análise no Gemini...")
             uploaded_file = genai.upload_file(file_path, mime_type=mime_type)
+     
             while uploaded_file.state.name == "PROCESSING":
                 time.sleep(2)
                 uploaded_file = genai.get_file(uploaded_file.name)
-
+                
             prompt = """
             Analise este documento (ofício) e extraia as seguintes informações em formato JSON puro:
             {
@@ -54,6 +77,7 @@ class Mailman:
             elif text_response.startswith("```"):
                 text_response = text_response.split("```")[1].split("```")[0].strip()
             return json.loads(text_response)
+            
         except Exception as e:
             print(f"Erro ao analisar com Gemini: {e}")
             logging.error(
@@ -126,6 +150,13 @@ class Mailman:
             mail = imaplib.IMAP4_SSL(self.imap_server)
             mail.login(self.email_user, self.email_pass)
             mail.select("inbox")
+            
+            with tracer.start_as_current_span("buscar_emails_nao_lidos") as span:
+                status, messages = mail.search(None, 'UNSEEN')
+                if status != 'OK' or not messages[0]:
+                    print("Nenhum e-mail não lido encontrado.")
+                    mail.logout()
+                    return []
 
             status, messages = mail.search(None, "UNSEEN")
             if status != "OK" or not messages[0]:

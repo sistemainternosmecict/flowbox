@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import main
-import os
 
 # Mock para as variáveis de ambiente
 @pytest.fixture

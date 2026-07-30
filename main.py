@@ -4,6 +4,24 @@ import time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+
+# 1. Configura o SDK (A infraestrutura de envio)
+resource = Resource.create(attributes={"service.name": "flowbox-app"})
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4317"))
+provider.add_span_processor(processor)
+
+# 2. Registra o Provider Globalmente (A mágica acontece aqui)
+trace.set_tracer_provider(provider)
+
+# 3. Adquire o tracer do próprio main.py
+tracer = trace.get_tracer(__name__)
+
 from sheetman import Sheetman
 from mailman import Mailman
 
@@ -42,10 +60,14 @@ class Flowbox:
             self.mailids_client = None
             print("Aviso: Credenciais para mail_ids não configuradas.")
 
-        self.processar_emails()
-        self.carregar_dados_planilha()
-        self.mudancas = self.buscar_mudancas()
-        self.atualiza_banco()
+        with tracer.start_as_current_span("processar_emails"):
+            self.processar_emails()
+        with tracer.start_as_current_span("carregar_dados_planilha"):
+            self.carregar_dados_planilha()
+        with tracer.start_as_current_span("buscar_mudancas"):
+            self.mudancas = self.buscar_mudancas()
+        with tracer.start_as_current_span("atualiza_banco"):
+            self.atualiza_banco()
         print("Flowbox executado com sucesso!")
 
     def criar_cliente_supabase(self):
@@ -228,4 +250,9 @@ class Flowbox:
             print(f"Erro ao registrar e-mail {mail_id} no Supabase: {e}")
 
 
-flowbox = Flowbox()
+if __name__ == "__main__":
+    try:
+        with tracer.start_as_current_span("Execução periódica - Flowbox."):
+            flowbox = Flowbox()
+    finally:
+        provider.shutdown()
