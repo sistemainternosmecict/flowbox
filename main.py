@@ -35,8 +35,15 @@ class Flowbox:
     spreadsheet_data: list
     mudancas: list
     emails_nao_lidos: list
+    quantidade_emails: int
+    linhas_escritas: int
+    gemini_funcionou_bem: bool
 
     def __init__(self):
+        self.start_time = time.time()
+        self.quantidade_emails = 0
+        self.linhas_escritas = 0
+        self.gemini_funcionou_bem = True
         print("""
 ===============================
               Flowbox iniciado!
@@ -70,6 +77,18 @@ class Flowbox:
             self.atualiza_banco()
         print("Flowbox executado com sucesso!")
 
+        tempo_execucao = time.time() - self.start_time
+        tasks_adicionadas = len(self.mudancas) if self.mudancas else 0
+
+        log_line = f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Emails: {self.quantidade_emails} | Linhas: {self.linhas_escritas} | Tasks: {tasks_adicionadas} | Tempo: {tempo_execucao:.2f}s | Gemini OK: {self.gemini_funcionou_bem} \n"
+        try:
+            with open(
+                os.path.join(os.path.dirname(__file__), "exec_log.log"), "a"
+            ) as f:
+                f.write(log_line)
+        except Exception as e:
+            print(f"Erro ao salvar log: {e}")
+
     def criar_cliente_supabase(self):
         self.supabase_client = create_client(self.supabase_url, self.supabase_key)
         print("Cliente Supabase criado com sucesso!")
@@ -84,6 +103,7 @@ class Flowbox:
         sm = Sheetman()
         self.emails_nao_lidos = mm.buscar_emails_nao_lidos()
         if self.emails_nao_lidos:
+            self.quantidade_emails = len(self.emails_nao_lidos)
             print(
                 f"\nForam encontrados {len(self.emails_nao_lidos)} e-mails não lidos."
             )
@@ -92,6 +112,9 @@ class Flowbox:
                     analysis = att.get("analysis")
                     tmp_path = att.get("temp_path")
                     filename = att.get("filename")
+
+                    if analysis is None and tmp_path:
+                        self.gemini_funcionou_bem = False
 
                     if isinstance(analysis, dict) and tmp_path:
                         # Extrai a extensão original
@@ -127,6 +150,7 @@ class Flowbox:
                                 resumo=analysis.get("resumo_pedido"),
                                 link_arquivo=link_drive,
                             )
+                            self.linhas_escritas += 1
 
                             # Atualiza registro no Supabase se possível
                             # (Note: Isso exigiria uma lógica de update, aqui estamos apenas no insert)

@@ -3,8 +3,7 @@ from email.utils import parsedate_to_datetime
 import os, tempfile, json, time, imaplib, email, logging
 from datetime import datetime
 from dotenv import load_dotenv
-import google.generativeai as genai
-from opentelemetry import trace, metrics
+from google import genai
 
 load_dotenv()
 meter = metrics.get_meter(__name__)
@@ -40,8 +39,7 @@ class Mailman:
         if not self.email_user or not self.email_pass:
             print("Aviso: Credenciais de e-mail não configuradas no .env")
         if self.gemini_key:
-            genai.configure(api_key=self.gemini_key)
-            self.model = genai.GenerativeModel(self.model_name)
+            self.client = genai.Client(api_key=self.gemini_key)
         else:
             print("Aviso: GEMINI_API_KEY não configurada no .env")
 
@@ -50,12 +48,11 @@ class Mailman:
             return None
         try:
             print(f"Enviando {file_path} para análise no Gemini...")
-            uploaded_file = genai.upload_file(file_path, mime_type=mime_type)
-     
-            while uploaded_file.state.name == "PROCESSING":
+            uploaded_file = self.client.files.upload(file=file_path, config={'mime_type': mime_type})
+            while uploaded_file.state == "PROCESSING":
                 time.sleep(2)
-                uploaded_file = genai.get_file(uploaded_file.name)
-                
+                uploaded_file = self.client.files.get(name=uploaded_file.name)
+
             prompt = """
             Analise este documento (ofício) e extraia as seguintes informações em formato JSON puro:
             {
@@ -67,7 +64,10 @@ class Mailman:
             }
             Retorne apenas o JSON, sem markdown ou explicações.
             """
-            response = self.model.generate_content([prompt, uploaded_file])
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[prompt, uploaded_file]
+            )
             # Limpeza básica da resposta para garantir JSON puro
             text_response = response.text.strip()
             if text_response.startswith("```json"):
@@ -84,7 +84,7 @@ class Mailman:
                 json.dumps(
                     {
                         "timestamp": datetime.now().isoformat(),
-                        "model": model_name,
+                        "model": self.model_name,
                         "request_count": 1,
                         "error": str(e),
                         "prompt_tokens": 0,
