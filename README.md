@@ -1,24 +1,6 @@
 # 🚀 Flowbox — Sistema Inteligente de Processamento e Sincronização de Ofícios
 
-> **Versão v1.2** — Automação institucional de alta performance para triagem de e-mails, conversão e análise documental com Inteligência Artificial, gestão em nuvem e sincronização de tarefas.
-
----
-
-## 👨‍💻 Dados Institucionais e Autoria
-
-| Atributo | Detalhe |
-| :--- | :--- |
-| **Autor & Engenheiro Responsável** | Thyéz de Oliveira Monteiro |
-| **Cargo** | Assessor de Informática |
-| **Função** | Engenheiro de Software |
-| **Matrícula Funcional** | `9506219-2` |
-| **Órgão** | Secretaria Municipal de Educação |
-| **Setor / Lotação** | Subsecretaria de Tecnologia — Sala 25 |
-| **Versão do Software** | `v1.2` |
-| **Data de Homologação** | 17 de agosto de 2026 |
-
-> ⚠️ **Aviso de Confidencialidade e Uso Restrito:**  
-> Este software é de **uso exclusivo e restrito interno da Subsecretaria de Tecnologia** da Secretaria Municipal de Educação. É vedada a reprodução, distribuição ou utilização não autorizada fora dos propósitos e sistemas oficiais do setor.
+> **Versão v1.2** — Automação institucional de triagem de e-mails, conversão e análise documental com Inteligência Artificial, gestão em nuvem e sincronização de tarefas.
 
 ---
 
@@ -192,8 +174,25 @@ Ofícios: [079_2026] Fwd: Segue em anexo ofício 079
 
 ---
 
+## 👨‍💻 Dados Institucionais e Autoria
+
+| Atributo | Detalhe |
+| :--- | :--- |
+| **Autor & Engenheiro Responsável** | Thyéz de Oliveira Monteiro |
+| **Cargo** | Assessor de Informática |
+| **Função** | Engenheiro de Software |
+| **Matrícula Funcional** | `9506219-2` |
+| **Órgão** | Secretaria Municipal de Educação |
+| **Setor / Lotação** | Subsecretaria de Tecnologia — Sala 25 |
+| **Versão do Software** | `v1.2` |
+| **Data de Homologação** | 17 de agosto de 2026 |
+
+*Software de uso exclusivo e restrito interno da Subsecretaria de Tecnologia da Secretaria Municipal de Educação.*
+
+---
+
 ## 📄 Licença e Termos de Uso
 
-**Uso Interno e Institucional.**  
+**Uso Interno Institucional.**  
 Desenvolvido exclusivamente para a **Subsecretaria de Tecnologia — Secretaria Municipal de Educação**.  
 Todos os direitos reservados © 2026.
