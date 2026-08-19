@@ -44,6 +44,7 @@ class Flowbox:
         self.quantidade_emails = 0
         self.linhas_escritas = 0
         self.gemini_funcionou_bem = True
+        self.emails_processados_log = []
         print("""
 ===============================
               Flowbox iniciado!
@@ -79,8 +80,10 @@ class Flowbox:
 
         tempo_execucao = time.time() - self.start_time
         tasks_adicionadas = len(self.mudancas) if self.mudancas else 0
+        
+        detalhes_emails = " | ".join(self.emails_processados_log) if self.emails_processados_log else "Nenhum"
 
-        log_line = f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Emails: {self.quantidade_emails} | Linhas: {self.linhas_escritas} | Tasks: {tasks_adicionadas} | Tempo: {tempo_execucao:.2f}s | Gemini OK: {self.gemini_funcionou_bem} \n"
+        log_line = f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Emails: {self.quantidade_emails} | Linhas: {self.linhas_escritas} | Tasks: {tasks_adicionadas} | Tempo: {tempo_execucao:.2f}s | Gemini OK: {self.gemini_funcionou_bem} | Detalhes: {detalhes_emails}\n"
         try:
             with open(
                 os.path.join(os.path.dirname(__file__), "exec_log.log"), "a"
@@ -164,6 +167,7 @@ class Flowbox:
                                 assunto=email.get("subject"),
                                 url_anexo_drive="",
                             )
+                            self.emails_processados_log.append(f"[{numero_oficio}] {email.get('subject')}")
 
                         # 3. Remove o arquivo temporário local
                         if os.path.exists(tmp_path):

@@ -4,6 +4,7 @@ import os, tempfile, json, time, imaplib, email, logging
 from datetime import datetime
 from dotenv import load_dotenv
 from google import genai
+from document_processor import analisar_documento_com_gemini as processar_documento
 
 load_dotenv()
 meter = metrics.get_meter(__name__)
@@ -43,56 +44,13 @@ class Mailman:
         else:
             print("Aviso: GEMINI_API_KEY não configurada no .env")
 
-    def analisar_documento_com_gemini(self, file_path, mime_type):
-        if not self.gemini_key:
-            return None
-        try:
-            print(f"Enviando {file_path} para análise no Gemini...")
-            uploaded_file = self.client.files.upload(file=file_path, config={'mime_type': mime_type})
-            while uploaded_file.state == "PROCESSING":
-                time.sleep(2)
-                uploaded_file = self.client.files.get(name=uploaded_file.name)
-
-            prompt = """
-            Analise este documento (ofício) e extraia as seguintes informações em formato JSON puro:
-            {
-                "numero_oficio": "string",
-                "data_documento": "string (data de criação mencionada no documento, formato DD/MM/AAAA)",
-                "nome_unidade": "string",
-                "assunto": "string",
-                "resumo_pedido": "string"
-            }
-            Retorne apenas o JSON, sem markdown ou explicações.
-            """
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=[prompt, uploaded_file]
-            )
-            # Limpeza básica da resposta para garantir JSON puro
-            text_response = response.text.strip()
-            if text_response.startswith("```json"):
-                text_response = (
-                    text_response.split("```json")[1].split("```")[0].strip()
-                )
-            elif text_response.startswith("```"):
-                text_response = text_response.split("```")[1].split("```")[0].strip()
-            return json.loads(text_response)
-            
-        except Exception as e:
-            print(f"Erro ao analisar com Gemini: {e}")
-            logging.error(
-                json.dumps(
-                    {
-                        "timestamp": datetime.now().isoformat(),
-                        "model": self.model_name,
-                        "request_count": 1,
-                        "error": str(e),
-                        "prompt_tokens": 0,
-                        "candidate_tokens": 0,
-                        "total_tokens": 0,
-                    }
-                )
-            )
+    def analisar_documento_com_gemini(self, file_path, mime_type=None):
+        return processar_documento(
+            file_path=file_path,
+            mime_type=mime_type,
+            api_key=self.gemini_key,
+            model_name=self.model_name
+        )
 
     def obter_id_original_email(self, email_msg, num):
         message_id = email_msg.get("Message-ID", "")
@@ -213,7 +171,7 @@ class Mailman:
                                             encoding if encoding else "utf-8"
                                         )
                                     if filename.lower().endswith(
-                                        (".pdf", ".png", ".jpg", ".jpeg")
+                                        (".pdf", ".png", ".jpg", ".jpeg", ".docx")
                                     ):
                                         with tempfile.NamedTemporaryFile(
                                             delete=False,

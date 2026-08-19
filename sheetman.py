@@ -30,7 +30,7 @@ class Sheetman:
             "https://www.googleapis.com/auth/drive",
         ]
         self.token_path = "token.json"
-        self.credentials_path = "client_secret_subsec.json"
+        self.credentials_path = "credentials.json"
 
     def obter_credenciais(self):
         creds = None
