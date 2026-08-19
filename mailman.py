@@ -5,29 +5,9 @@ from datetime import datetime
 from dotenv import load_dotenv
 from google import genai
 from document_processor import analisar_documento_com_gemini as processar_documento
+import stats_tracker
 
 load_dotenv()
-meter = metrics.get_meter(__name__)
-# 1. Contador para Documentos Processados
-doc_counter = meter.create_counter(
-    name="documentos_processados_total",
-    description="Total de documentos processados pelo mailman",
-    unit="1"
-)
-
-# 2. Contador de Requisições Feitas ao Gemini
-gemini_requests_counter = meter.create_counter(
-    name="gemini_requisicoes_total",
-    description="Total de chamadas feitas à API do Gemini",
-    unit="1"
-)
-
-# 3. Contador de Tokens Consumidos
-gemini_tokens_counter = meter.create_counter(
-    name="gemini_tokens_consumidos_total",
-    description="Total de tokens consumidos no Gemini (Prompt e Resposta)",
-    unit="1"
-)
 
 
 class Mailman:
@@ -53,9 +33,18 @@ class Mailman:
         )
 
     def obter_id_original_email(self, email_msg, num):
-        message_id = email_msg.get("Message-ID", "")
+        num_str = num.decode("utf-8") if isinstance(num, bytes) else str(num) if num else ""
+        message_id = ""
+        if hasattr(email_msg, "get"):
+            header_val = str(email_msg.get("Message-ID") or "")
+            from_val = str(email_msg.get("From") or "")
+            if header_val and header_val != from_val and "@" in header_val:
+                message_id = header_val.strip("<>")
+        if not message_id:
+            message_id = num_str
+
         body = ""
-        if email_msg.is_multipart():
+        if hasattr(email_msg, "is_multipart") and email_msg.is_multipart():
             for part in email_msg.walk():
                 if part.get_content_type() == "text/plain":
                     try:
@@ -98,6 +87,40 @@ class Mailman:
         email_data["sender_email"] = sender_email
         return email_data
 
+    def marcar_como_nao_lido(self, num: str = None, message_id: str = None) -> bool:
+        r"""
+        Remove a flag \Seen do e-mail no servidor IMAP para que ele volte ao status de NÃO LIDO.
+        Pode receber o número da mensagem (num) ou o Message-ID.
+        """
+        if not self.email_user or not self.email_pass:
+            return False
+        try:
+            mail = imaplib.IMAP4_SSL(self.imap_server)
+            mail.login(self.email_user, self.email_pass)
+            mail.select("inbox")
+
+            marcado = False
+            if num:
+                status, _ = mail.store(str(num), "-FLAGS", "\\Seen")
+                if status == "OK":
+                    marcado = True
+            elif message_id:
+                status, data = mail.search(None, f'HEADER Message-ID "<{message_id}>"')
+                if (status != "OK" or not data[0]) and "@" in message_id:
+                    status, data = mail.search(None, f'HEADER Message-ID "{message_id}"')
+                if status == "OK" and data[0]:
+                    for msg_num in data[0].split():
+                        mail.store(msg_num, "-FLAGS", "\\Seen")
+                    marcado = True
+
+            mail.logout()
+            if marcado:
+                print(f"E-mail {num or message_id} marcado como NÃO LIDO com sucesso no IMAP.")
+            return marcado
+        except Exception as e:
+            print(f"Erro ao remarcar e-mail {num or message_id} como não lido no IMAP: {e}")
+            return False
+
     def buscar_emails_nao_lidos(self) -> list:
         if not self.email_user or not self.email_pass:
             return []
@@ -108,13 +131,6 @@ class Mailman:
             mail = imaplib.IMAP4_SSL(self.imap_server)
             mail.login(self.email_user, self.email_pass)
             mail.select("inbox")
-            
-            with tracer.start_as_current_span("buscar_emails_nao_lidos") as span:
-                status, messages = mail.search(None, 'UNSEEN')
-                if status != 'OK' or not messages[0]:
-                    print("Nenhum e-mail não lido encontrado.")
-                    mail.logout()
-                    return []
 
             status, messages = mail.search(None, "UNSEEN")
             if status != "OK" or not messages[0]:
@@ -126,16 +142,25 @@ class Mailman:
             print(f"Total de e-mails não lidos: {len(msg_ids)}")
 
             for num in msg_ids:
+                num_str = num.decode("utf-8") if isinstance(num, bytes) else str(num)
                 status, data = mail.fetch(num, "(RFC822)")
                 if status != "OK":
                     continue
 
                 res, msg = data[0]
-                if isinstance(msg, bytes):
+                if not isinstance(msg, bytes):
+                    continue
+
+                sucesso_email = True
+                motivo_falha = ""
+
+                try:
                     email_msg = email.message_from_bytes(msg)
-                    subject, encoding = decode_header(email_msg["Subject"])[0]
+                    subject_header = email_msg.get("Subject", "")
+                    decoded_parts = decode_header(subject_header)
+                    subject, encoding = decoded_parts[0] if decoded_parts else ("", None)
                     if isinstance(subject, bytes):
-                        subject = subject.decode(encoding if encoding else "utf-8")
+                        subject = subject.decode(encoding if encoding else "utf-8", errors="ignore")
                     from_ = email_msg.get("From")
                     email_date_raw = email_msg.get("Date")
                     email_date = email_date_raw
@@ -144,8 +169,11 @@ class Mailman:
                         email_date = dt.strftime("%d/%m/%Y")
                     except Exception:
                         pass
+
+                    email_id, sender_email = self.obter_id_original_email(email_msg, num)
                     body = ""
                     attachments_info = []
+
                     if email_msg.is_multipart():
                         for part in email_msg.walk():
                             content_type = part.get_content_type()
@@ -163,12 +191,11 @@ class Mailman:
                             elif "attachment" in content_disposition:
                                 filename = part.get_filename()
                                 if filename:
-                                    decoded_filename, encoding = decode_header(
-                                        filename
-                                    )[0]
+                                    decoded_header_res = decode_header(filename)
+                                    decoded_filename, encoding = decoded_header_res[0] if decoded_header_res else (filename, None)
                                     if isinstance(decoded_filename, bytes):
                                         filename = decoded_filename.decode(
-                                            encoding if encoding else "utf-8"
+                                            encoding if encoding else "utf-8", errors="ignore"
                                         )
                                     if filename.lower().endswith(
                                         (".pdf", ".png", ".jpg", ".jpeg", ".docx")
@@ -184,13 +211,20 @@ class Mailman:
                                         )
                                         if isinstance(analise, dict):
                                             analise["data_entrada"] = email_date
-                                        attachments_info.append(
-                                            {
-                                                "filename": filename,
-                                                "analysis": analise,
-                                                "temp_path": tmp_path,
-                                            }
-                                        )
+                                            attachments_info.append(
+                                                {
+                                                    "filename": filename,
+                                                    "analysis": analise,
+                                                    "temp_path": tmp_path,
+                                                }
+                                            )
+                                        else:
+                                            # Falha na análise do anexo pelo Gemini
+                                            sucesso_email = False
+                                            motivo_falha = f"Falha na análise Gemini do anexo '{filename}'"
+                                            if os.path.exists(tmp_path):
+                                                os.unlink(tmp_path)
+                                            break
                                     else:
                                         attachments_info.append(
                                             {
@@ -207,6 +241,13 @@ class Mailman:
                         except Exception:
                             pass
 
+                    if not sucesso_email:
+                        # Remarcar como não lido no IMAP imediatamente
+                        print(f"Aviso: {motivo_falha}. Remarcando e-mail {num_str} ({subject}) como NÃO LIDO...")
+                        mail.store(num, "-FLAGS", "\\Seen")
+                        stats_tracker.registrar_falha(email_id, motivo_falha)
+                        continue
+
                     email_entry = {
                         "subject": subject,
                         "from": from_,
@@ -214,15 +255,18 @@ class Mailman:
                         "body": body.strip(),
                         "has_attachment": len(attachments_info) > 0,
                         "attachments": attachments_info,
+                        "imap_num": num_str,
                     }
-                    email_id, sender_email = self.obter_id_original_email(
-                        email_msg, num
-                    )
                     email_entry = self.inserir_id_na_resposta(
                         email_entry, email_id, sender_email
                     )
-
                     emails_data.append(email_entry)
+
+                except Exception as e:
+                    print(f"Erro ao processar e-mail {num_str}: {e}. Remarcando como NÃO LIDO...")
+                    mail.store(num, "-FLAGS", "\\Seen")
+                    stats_tracker.registrar_falha(str(num_str), f"Erro no parsing: {e}")
+                    continue
 
             mail.logout()
         except Exception as e:

@@ -182,7 +182,7 @@ def analisar_documento_com_gemini(
             model=model_name,
             contents=[prompt, uploaded_file]
         )
-        
+
         text_response = response.text.strip()
         if text_response.startswith("```json"):
             text_response = text_response.split("```json")[1].split("```")[0].strip()
