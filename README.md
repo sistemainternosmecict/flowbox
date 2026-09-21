@@ -115,6 +115,7 @@ EMAIL_IMAP_SERVER=imap.gmail.com
 
 # --- Inteligência Artificial (Google Gemini) ---
 GEMINI_API_KEY=sua_chave_gemini_aqui
+GEMINI_MODEL=gemini-3-flash-preview
 
 # --- Banco de Dados Supabase (Tarefas) ---
 VITE_SUPABASE_URL=https://xxxx.supabase.co

@@ -1,9 +1,12 @@
 import os
 import uuid
 import time
+import traceback
+import httpx
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client
+from postgrest.exceptions import APIError
 
 from sheetman import Sheetman
 from mailman import Mailman
@@ -103,7 +106,9 @@ class Flowbox:
 
         try:
             with open(
-                os.path.join(os.path.dirname(__file__), "exec_log.log"), "a", encoding="utf-8"
+                os.path.join(os.path.dirname(__file__), "exec_log.log"),
+                "a",
+                encoding="utf-8",
             ) as f:
                 f.write(bloco_log)
         except Exception as e:
@@ -132,7 +137,7 @@ class Flowbox:
                 imap_num = email.get("imap_num")
                 email_subject = email.get("subject", "")
                 attachments = email.get("attachments", [])
-                
+
                 email_sucesso = True
                 motivo_erro = ""
 
@@ -144,7 +149,9 @@ class Flowbox:
 
                         if analysis is None and tmp_path:
                             self.gemini_funcionou_bem = False
-                            raise RuntimeError(f"Falha na análise Gemini do anexo '{filename}'")
+                            raise RuntimeError(
+                                f"Falha na análise Gemini do anexo '{filename}'"
+                            )
 
                         if isinstance(analysis, dict) and tmp_path:
                             # Extrai a extensão original
@@ -165,7 +172,9 @@ class Flowbox:
                             )
                             link_drive = sm.upload_para_drive(tmp_path, novo_nome)
                             if not link_drive:
-                                raise RuntimeError(f"Falha no upload para o Google Drive ({filename})")
+                                raise RuntimeError(
+                                    f"Falha no upload para o Google Drive ({filename})"
+                                )
                             print("link_drive: ", link_drive)
 
                             # 2. Insere os dados extraídos na planilha
@@ -182,7 +191,9 @@ class Flowbox:
                                 link_arquivo=link_drive,
                             )
                             if not inseriu:
-                                raise RuntimeError(f"Falha ao inserir registro na planilha ({numero_oficio})")
+                                raise RuntimeError(
+                                    f"Falha ao inserir registro na planilha ({numero_oficio})"
+                                )
 
                             self.linhas_escritas += 1
 
@@ -195,7 +206,9 @@ class Flowbox:
                                 assunto=email_subject,
                                 url_anexo_drive=link_drive,
                             )
-                            self.emails_processados_log.append(f"[{numero_oficio}] {email_subject}")
+                            self.emails_processados_log.append(
+                                f"[{numero_oficio}] {email_subject}"
+                            )
 
                             # 3. Remove o arquivo temporário local
                             if os.path.exists(tmp_path):
@@ -207,12 +220,16 @@ class Flowbox:
                             self.sucessos_segunda_tentativa += 1
                         else:
                             self.sucessos_primeira_tentativa += 1
-                        print(f"Email '{email_subject}' processado com sucesso ({tipo_sucesso}).")
+                        print(
+                            f"Email '{email_subject}' processado com sucesso ({tipo_sucesso})."
+                        )
 
                 except Exception as e:
                     email_sucesso = False
                     motivo_erro = str(e)
-                    print(f"Erro ao processar e-mail '{email_subject}': {e}. Remarcando como NÃO LIDO no IMAP...")
+                    print(
+                        f"Erro ao processar e-mail '{email_subject}': {e}. Remarcando como NÃO LIDO no IMAP..."
+                    )
                     mm.marcar_como_nao_lido(num=imap_num, message_id=email_id)
                     stats_tracker.registrar_falha(email_id, motivo_erro)
                     self.emails_falhos.append(f"{email_subject} ({motivo_erro})")
@@ -245,7 +262,9 @@ class Flowbox:
                 try:
                     dt = datetime.strptime(row[1], "%d/%m/%Y")
                     dt = dt.replace(tzinfo=timezone.utc)
-                    data_iso = dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+                    data_iso = dt.isoformat(timespec="milliseconds").replace(
+                        "+00:00", "Z"
+                    )
                 except (IndexError, ValueError):
                     print(
                         f"Aviso: Linha com formato inválido ignorada: {row[0] if row else 'Vazia'}"
