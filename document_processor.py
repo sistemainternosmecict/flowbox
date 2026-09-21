@@ -117,7 +117,7 @@ def analisar_documento_com_gemini(
     file_path: str,
     mime_type: Optional[str] = None,
     api_key: Optional[str] = None,
-    model_name: str = "gemini-3-flash-preview",
+    model_name: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Analisa um documento (PDF, DOCX, PNG, JPG, JPEG) usando o modelo Gemini
@@ -130,6 +130,8 @@ def analisar_documento_com_gemini(
     if not key:
         print("Aviso: GEMINI_API_KEY não configurada.")
         return None
+
+    model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     arquivo_para_upload = file_path
     temp_dir_criado = None

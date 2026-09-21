@@ -11,12 +11,12 @@ load_dotenv()
 
 
 class Mailman:
-    def __init__(self):
+    def __init__(self, model_name: str = None):
         self.email_user = os.getenv("EMAIL_USER")
         self.email_pass = os.getenv("EMAIL_PASS")
         self.imap_server = os.getenv("EMAIL_IMAP_SERVER", "imap.gmail.com")
         self.gemini_key = os.getenv("GEMINI_API_KEY")
-        self.model_name = "gemini-3-flash-preview"
+        self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
         if not self.email_user or not self.email_pass:
             print("Aviso: Credenciais de e-mail não configuradas no .env")
         if self.gemini_key:
